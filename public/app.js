@@ -155,27 +155,60 @@
     }
   });
 
-  // ---- Step 4: full report -----------------------------------------------
-  function renderReport(data) {
-    document.getElementById("reportHeadline").textContent = data.headline;
-    document.getElementById("reportSummary").textContent = data.summary;
+  // ---- Step 4: full audit report ----------------------------------------
+  function ringSVG(score) {
+    const r = 30, c = 2 * Math.PI * r, pct = Math.max(0, Math.min(100, score)) / 100;
+    const col = score >= 75 ? "#16884a" : score >= 45 ? "#c07d16" : "#b3261e";
+    return (
+      '<svg width="72" height="72" style="transform:rotate(-90deg)">' +
+      '<circle cx="36" cy="36" r="' + r + '" fill="none" stroke="#eef2f8" stroke-width="7"/>' +
+      '<circle cx="36" cy="36" r="' + r + '" fill="none" stroke="' + col + '" stroke-width="7" stroke-linecap="round" stroke-dasharray="' + c + '" stroke-dashoffset="' + (c * (1 - pct)) + '"/>' +
+      '</svg><div class="rep-ring-num">' + score + "</div>"
+    );
+  }
 
-    const gapsList = document.getElementById("gapsList");
-    gapsList.innerHTML = "";
-    (data.gaps && data.gaps.length ? data.gaps : data.findings || []).forEach((g) => {
-      const li = document.createElement("li");
-      li.textContent = g;
-      gapsList.appendChild(li);
+  function renderReport(data) {
+    document.getElementById("reportHeadline").textContent = data.headline || "";
+    document.getElementById("reportSummary").textContent = data.summary || "";
+
+    const tierEl = document.getElementById("reportTier");
+    if (tierEl) tierEl.textContent = (data.tier || "") + " AI VISIBILITY";
+
+    const ring = document.getElementById("repRing");
+    if (ring) ring.innerHTML = ringSVG(data.score || 0);
+
+    const grid = document.getElementById("catGrid");
+    grid.innerHTML = "";
+    (data.categories || []).forEach((c) => {
+      const checks = (c.checks || [])
+        .map((ck) =>
+          '<div class="cat-check"><span class="ck ' + (ck.ok ? "y" : "n") + '">' +
+          (ck.ok ? "✓" : "✕") + "</span>" + ck.label +
+          (ck.value ? '<span class="cv">' + ck.value + "</span>" : "") + "</div>"
+        )
+        .join("");
+      const div = document.createElement("div");
+      div.className = "cat";
+      div.innerHTML =
+        '<div class="cat-h"><span class="nm">' + c.label + '</span><span class="sc st-' + c.status + '">' + c.score + "</span></div>" +
+        '<div class="track"><div class="fillb bg-' + c.status + '" style="width:' + c.score + '%"></div></div>' +
+        '<div class="cat-checks">' + checks + "</div>";
+      grid.appendChild(div);
     });
 
-    document.getElementById("packageName").textContent = data.package.name;
-    document.getElementById("packageReason").textContent = data.package.reason;
-    document.getElementById("packageSetup").textContent = data.package.setupInvestment;
-    document.getElementById("packageMonthly").textContent = data.package.monthlyInvestment;
-    document.getElementById("packageEffort").textContent = data.package.monthlyEffort || "";
+    const rl = document.getElementById("recsList");
+    rl.innerHTML = "";
+    (data.recommendations || []).forEach((r) => {
+      const div = document.createElement("div");
+      div.className = "rec";
+      div.innerHTML =
+        '<span class="pri pri-' + r.priority + '">' + r.priority + "</span>" +
+        '<div class="rc"><strong>' + r.title + "</strong><p>" + r.detail + "</p></div>";
+      rl.appendChild(div);
+    });
 
     const bookBtn = document.getElementById("bookCallBtn");
-    bookBtn.href = data.bookingUrl || "#";
+    if (bookBtn && data.bookingUrl) bookBtn.href = data.bookingUrl;
 
     document.getElementById("crmNote").textContent = data.crmForwarded
       ? "Your results have been sent to a Smart 1 strategist."

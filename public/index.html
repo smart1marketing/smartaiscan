@@ -116,19 +116,36 @@
   @keyframes spin{to{transform:rotate(360deg)}}
   .audit-card [data-step="unlocking"]{text-align:center;color:var(--muted)}
 
-  /* report */
-  .gaps-panel{margin-top:6px}
-  .gaps-panel h4{margin:0 0 8px;font-size:14px;color:var(--navy)}
-  .gaps-panel ul{margin:0;padding-left:18px;color:var(--ink);font-size:14px}
-  .gaps-panel li{margin-bottom:6px}
-  .package-panel{background:var(--bg-alt);border:1px solid var(--line);border-radius:12px;padding:18px;margin:16px 0}
-  .package-name{font-family:'Plus Jakarta Sans';font-weight:800;color:var(--navy);font-size:17px}
-  .package-reason{color:var(--muted);font-size:13.5px;margin:6px 0 12px}
-  .package-figures{display:flex;gap:18px}
-  .fig-label{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-2)}
-  .fig-value{font-family:'Plus Jakarta Sans';font-weight:800;color:var(--navy);font-size:18px}
-  .package-effort{font-size:12.5px;color:var(--muted);margin-top:8px}
-  .report-summary{color:var(--muted);font-size:14.5px}
+  /* report — full audit */
+  .rep-top{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+  .rep-ring{position:relative;width:72px;height:72px;flex:none}
+  .rep-ring-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans';font-weight:800;color:var(--navy);font-size:20px}
+  .rep-tier{font-family:var(--font-mono);font-size:12px;letter-spacing:.06em;color:var(--gold-dark);margin-top:2px}
+  .report-summary{color:var(--muted);font-size:14px}
+  .cat-grid{display:flex;flex-direction:column;gap:10px;margin:12px 0 4px}
+  .cat{border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .cat-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .cat-h .nm{font-weight:700;font-size:13.5px;color:var(--navy)}
+  .cat-h .sc{font-family:'Plus Jakarta Sans';font-weight:800;font-size:15px}
+  .cat .track{height:7px;background:#eef2f8;border-radius:5px;margin:9px 0;overflow:hidden}
+  .cat .fillb{height:100%;border-radius:5px}
+  .st-pass{color:var(--pass)}.st-warn{color:var(--warn)}.st-fail{color:var(--crit)}
+  .bg-pass{background:var(--pass)}.bg-warn{background:var(--warn)}.bg-fail{background:var(--crit)}
+  .cat-checks{display:flex;flex-direction:column;gap:5px}
+  .cat-check{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+  .cat-check .ck{font-weight:800}
+  .cat-check .ck.y{color:var(--pass)}.cat-check .ck.n{color:var(--crit)}
+  .cat-check .cv{margin-left:auto;color:var(--muted-2);font-size:11.5px;font-family:var(--font-mono)}
+  .recs{margin-top:16px}
+  .recs h4{margin:0 0 8px;font-size:14px;color:var(--navy)}
+  .rec{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .rec:last-child{border-bottom:none}
+  .rec .pri{flex:none;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:3px 7px;border-radius:5px;height:fit-content}
+  .pri-High{background:#fbe9e7;color:var(--crit)}
+  .pri-Medium{background:#f9f0dd;color:var(--warn)}
+  .pri-Low{background:#eef2f7;color:var(--muted)}
+  .rec .rc strong{font-size:13.5px;color:var(--navy)}
+  .rec .rc p{margin:2px 0 0;font-size:12.5px;color:var(--muted)}
   .report-foot{font-size:12px;color:var(--muted-2);text-align:center;margin-top:10px}
   .error-eyebrow{color:var(--crit)}
 
@@ -307,20 +324,21 @@
         </section>
 
         <section class="step" data-step="report" hidden>
-          <div class="eyebrow">Your AI Visibility report</div>
-          <h2 id="reportHeadline" style="text-align:left">—</h2>
-          <p class="report-summary" id="reportSummary">—</p>
-          <div class="gaps-panel"><h4>Key gaps we found</h4><ul id="gapsList"></ul></div>
-          <div class="package-panel">
-            <div class="package-name" id="packageName">—</div>
-            <p class="package-reason" id="packageReason">—</p>
-            <div class="package-figures">
-              <div><div class="fig-label">One-time setup</div><div class="fig-value" id="packageSetup">—</div></div>
-              <div><div class="fig-label">Monthly optimization</div><div class="fig-value" id="packageMonthly">—</div></div>
+          <div class="rep-top">
+            <div class="rep-ring" id="repRing"></div>
+            <div>
+              <div class="eyebrow">Your AI Visibility audit</div>
+              <div class="rep-tier" id="reportTier">—</div>
             </div>
-            <div class="package-effort" id="packageEffort"></div>
           </div>
-          <a class="btn-primary btn-block" id="bookCallBtn" href="https://smart1marketing.com/free-consultation" target="_blank" rel="noopener"><span>Book my strategy call</span></a>
+          <h2 id="reportHeadline" style="text-align:left;font-size:18px">—</h2>
+          <p class="report-summary" id="reportSummary">—</p>
+          <div class="cat-grid" id="catGrid"></div>
+          <div class="recs">
+            <h4>Priority fixes</h4>
+            <div id="recsList"></div>
+          </div>
+          <a class="btn-primary btn-block" id="bookCallBtn" href="https://smart1marketing.com/free-consultation" target="_blank" rel="noopener" style="margin-top:16px"><span>Book my strategy call</span></a>
           <div class="report-foot" id="crmNote"></div>
         </section>
 

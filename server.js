@@ -104,6 +104,82 @@ function countSitemapUrls(xml) {
 }
 
 /**
+ * Turn the raw scan signals into a full, customer-facing audit:
+ * a scored breakdown across the Diagnostic Radar Matrix categories,
+ * each with pass/warn/fail check rows, plus a prioritized fix list.
+ * This is what the visitor actually sees — no pricing.
+ */
+function statusFor(s) {
+  return s >= 75 ? "pass" : s >= 45 ? "warn" : "fail";
+}
+
+function deriveAudit(x) {
+  const cats = [];
+  const pushCat = (key, label, score, checks) =>
+    cats.push({ key, label, score: Math.round(Math.max(0, Math.min(100, score))), status: statusFor(score), checks });
+
+  pushCat("schema", "Structured data (schema)",
+    (x.hasFAQ ? 40 : 0) + (x.hasHowTo ? 25 : 0) + (x.hasLocalBusiness ? 35 : 0),
+    [
+      { label: "FAQ schema", ok: x.hasFAQ },
+      { label: "HowTo schema", ok: x.hasHowTo },
+      { label: "LocalBusiness / Organization schema", ok: x.hasLocalBusiness },
+    ]);
+
+  pushCat("ai", "AI readiness signals",
+    (x.llmsOk ? 60 : 0) + ((x.hasFAQ || x.hasHowTo) ? 40 : 0),
+    [
+      { label: "llms.txt policy file", ok: x.llmsOk },
+      { label: "Conversational Q&A schema for AI answers", ok: x.hasFAQ || x.hasHowTo },
+    ]);
+
+  pushCat("sitemap", "Sitemap & indexing",
+    (x.sitemapOk ? 60 : 0) + (x.sitemapUrlCount >= 10 ? 40 : x.sitemapUrlCount > 0 ? 20 : 0),
+    [
+      { label: "sitemap.xml reachable", ok: x.sitemapOk },
+      { label: "Pages indexed", ok: x.sitemapUrlCount > 0, value: x.sitemapUrlCount ? x.sitemapUrlCount + " URLs" : "none" },
+    ]);
+
+  pushCat("local", "Local presence (NAP)",
+    (x.hasNAP ? 50 : 0) + (x.hasLocalBusiness ? 50 : 0),
+    [
+      { label: "Phone / contact (NAP) on page", ok: x.hasNAP },
+      { label: "LocalBusiness schema", ok: x.hasLocalBusiness },
+    ]);
+
+  const cScore = x.wordCount > 1200 ? 100 : x.wordCount > 600 ? 65 : x.wordCount > 250 ? 35 : 10;
+  pushCat("content", "Content depth", cScore,
+    [{ label: "Homepage word count", ok: x.wordCount > 600, value: x.wordCount + " words" }]);
+
+  pushCat("structure", "Crawlability & structure",
+    (!x.robotsBlocksAll ? 35 : 0) + (x.title ? 20 : 0) + (x.metaDesc ? 20 : 0) + (x.h1Count >= 1 ? 15 : 0) + (x.imgsMissingAlt === 0 ? 10 : 0),
+    [
+      { label: "Crawlers allowed (robots.txt)", ok: !x.robotsBlocksAll },
+      { label: "Title tag", ok: !!x.title },
+      { label: "Meta description", ok: !!x.metaDesc },
+      { label: "H1 heading", ok: x.h1Count >= 1 },
+      { label: "Images have alt text", ok: x.imgsMissingAlt === 0, value: x.imgsMissingAlt ? x.imgsMissingAlt + " missing" : "ok" },
+    ]);
+
+  const recs = [];
+  const add = (priority, title, detail) => recs.push({ priority, title, detail });
+  if (x.robotsBlocksAll) add("High", "Unblock crawlers in robots.txt", "Your robots.txt blocks crawlers site-wide, so AI and search engines can’t read the site at all.");
+  if (!x.hasFAQ) add("High", "Add FAQ (FAQPage) schema", "Gives AI a machine-readable Q&A block it can quote directly when answering buyers.");
+  if (!x.llmsOk) add("High", "Publish an llms.txt file", "Tells AI assistants how to understand, index and cite your business.");
+  if (!x.hasLocalBusiness) add("High", "Add LocalBusiness / Organization schema", "Confirms who you are, what you do and where — the core local entity signal AI relies on.");
+  if (!x.sitemapOk) add("Medium", "Publish a sitemap.xml", "Speeds discovery and indexing of every page on your site.");
+  if (!x.hasNAP) add("Medium", "Show your name, address & phone", "A clear NAP on the page strengthens your local entity and trust signals.");
+  if (x.wordCount <= 600) add("Medium", "Expand your homepage content", "Thin pages give AI little to draw from — add depth on your services and expertise.");
+  if (!x.title || !x.metaDesc) add("Medium", "Fix title & meta description", "These frame how AI and search engines summarise your page.");
+  if (!x.hasHowTo) add("Low", "Add HowTo schema where relevant", "Structured how-to content earns extra AI citations for process-style queries.");
+  if (x.imgsMissingAlt > 0) add("Low", "Add alt text to " + x.imgsMissingAlt + " image(s)", "Alt text improves accessibility and gives crawlers context for your images.");
+  const rank = { High: 0, Medium: 1, Low: 2 };
+  recs.sort((a, b) => rank[a.priority] - rank[b.priority]);
+
+  return { categories: cats, recommendations: recs.slice(0, 7) };
+}
+
+/**
  * Rule-based AI Visibility scan. Mirrors the category weighting used in
  * the Smart 1 AI Search Architecture Blueprint (schema, sitemap, AI
  * readiness signals, local/NAP clarity, content depth, crawlability).
@@ -214,11 +290,19 @@ async function scanSite(targetUrl) {
   else if (score < 75) tier = "Strong";
   else tier = "Dominant";
 
+  const audit = deriveAudit({
+    hasFAQ, hasHowTo, hasLocalBusiness, hasNAP,
+    title, metaDesc, h1Count, wordCount, imgsMissingAlt,
+    sitemapOk: sitemap.ok, sitemapUrlCount, llmsOk: llmsTxt.ok, robotsBlocksAll,
+  });
+
   return {
     url: parsed.toString(),
     domain: parsed.hostname,
     score,
     tier,
+    categories: audit.categories,
+    recommendations: audit.recommendations,
     signals: {
       hasFAQSchema: hasFAQ,
       hasHowToSchema: hasHowTo,
@@ -396,16 +480,16 @@ app.post("/api/unlock", async (req, res) => {
 
   const webhookResult = await sendToSmart1Suite(webhookPayload);
 
+  // Customer-facing payload = the full audit (no pricing). The package
+  // recommendation still goes to Smart 1 Suite via the webhook above.
   res.json({
     domain: scan.domain,
     score: scan.score,
     tier: scan.tier,
-    findings: scan.findings,
-    signals: scan.signals,
     headline: narrative.headline,
     summary: narrative.summary,
-    gaps: narrative.gaps,
-    package: pkg,
+    categories: scan.categories,
+    recommendations: scan.recommendations,
     bookingUrl: CALENDAR_URL,
     crmForwarded: webhookResult.sent,
   });
