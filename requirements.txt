@@ -1,0 +1,7 @@
+Flask>=3.0,<4
+flask-cors>=4.0,<6
+cloudinary>=1.40,<2
+requests>=2.31,<3
+python-dotenv>=1.0,<2
+gunicorn>=22,<24
+reportlab>=4.2,<5

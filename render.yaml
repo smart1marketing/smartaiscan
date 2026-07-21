@@ -1,18 +1,21 @@
 services:
   - type: web
-    name: smart1-ai-visibility-funnel
-    runtime: node
-    plan: starter
-    buildCommand: npm install
-    startCommand: npm start
+    name: insertionordersmart
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --timeout 180 --workers 2 --threads 4
     envVars:
+      - key: ORDER_COUNTER_CLOUDINARY_ID
+        value: smart1_system/order_counter.json
+      - key: GHL_WEBHOOK_URL
+        sync: false
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: BRANDFETCH_API_KEY
+        sync: false
+      - key: BRANDFETCH_CLIENT_ID
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL
-        value: gpt-4o-mini
-      - key: SMART1_WEBHOOK_URL
-        sync: false
-      - key: SMART1_WEBHOOK_TOKEN
-        sync: false
-      - key: CALENDAR_URL
-        value: https://smart1marketing.com/book-a-call
+        value: gpt-5-mini
